@@ -78,54 +78,6 @@ mapTexture.repeat.set(4, 4);
 const scene = new THREE.Scene();
 scene.background = backgroundTexture;
 
-// Create custom indicator texture
-const createIndicatorTexture = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const context = canvas.getContext('2d');
-
-    // Create gradient
-    const gradient1 = context.createRadialGradient(
-        128, 128, 0,
-        128, 128, 128
-    );
-    gradient1.addColorStop(0, 'rgba(0, 255, 255, 0.5)');
-    gradient1.addColorStop(0.5, 'rgba(0, 255, 255, 0.2)');
-    gradient1.addColorStop(1, 'rgba(0, 255, 255, 0)');
-
-    // Draw main glow
-    context.fillStyle = gradient1;
-    context.fillRect(0, 0, 256, 256);
-
-    // Draw rings
-    context.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-    context.lineWidth = 2;
-    for (let i = 0; i < 3; i++) {
-        context.beginPath();
-        context.arc(128, 128, 50 + i * 30, 0, Math.PI * 2);
-        context.stroke();
-    }
-
-    // Draw scan lines
-    context.strokeStyle = 'rgba(0, 255, 255, 0.3)';
-    context.lineWidth = 1;
-    for (let i = 0; i < 8; i++) {
-        context.save();
-        context.translate(128, 128);
-        context.rotate(i * Math.PI / 4);
-        context.beginPath();
-        context.moveTo(0, 0);
-        context.lineTo(128, 0);
-        context.stroke();
-        context.restore();
-    }
-
-    return new THREE.CanvasTexture(canvas);
-};
-
-const indicatorTexture = createIndicatorTexture();
-
 // Ground plane with map texture
 const planeGeometry = new THREE.PlaneGeometry(40, 40);
 const planeMaterial = new THREE.MeshStandardMaterial({ 
@@ -209,22 +161,7 @@ location.add(locationLight);
 
 scene.add(location);
 
-// Create circular indicator under location marker
-const indicatorGeometry = new THREE.CircleGeometry(1.5, 32);
-const indicatorMaterial = new THREE.MeshBasicMaterial({
-    map: indicatorTexture,
-    transparent: true,
-    opacity: 0.8,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-});
-const indicator = new THREE.Mesh(indicatorGeometry, indicatorMaterial);
-indicator.rotation.x = -Math.PI / 2;
-indicator.position.y = -0.48; // Slightly above the ground plane
-scene.add(indicator);
-
-// Sphere with increased geometry detail
+// Create first orbiting sphere
 const sphereGeometry = new THREE.SphereGeometry(0.5, 128, 128); // Increased size and segments
 
 const sphereMaterial = new THREE.MeshStandardMaterial({ 
@@ -467,19 +404,6 @@ const tick = () => {
     location.scale.setScalar(1 + Math.sin(elapsedTime * 2) * 0.05);
     location.rotation.y = elapsedTime * parameters.locationRotationSpeed;
     location.position.y = 1 + Math.sin(elapsedTime * 2) * 0.1;
-
-    // Animate the indicator
-    indicator.rotation.z = -elapsedTime * 0.3; // Slower rotation
-    const pulseSpeed = 2;
-    const baseOpacity = 0.7;
-    const pulseAmount = 0.2;
-    indicator.material.opacity = baseOpacity + Math.sin(elapsedTime * pulseSpeed) * pulseAmount;
-    
-    // Scale pulse effect
-    const baseScale = 1;
-    const scaleAmount = 0.1;
-    const scale = baseScale + Math.sin(elapsedTime * pulseSpeed) * scaleAmount;
-    indicator.scale.set(scale, scale, 1);
 
     // Update controls
     controls.update();
