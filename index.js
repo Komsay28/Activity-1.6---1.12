@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import * as dat from 'lil-gui';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 
 // Debug
 const gui = new dat.GUI();
@@ -65,6 +67,11 @@ sphereTexture.encoding = THREE.sRGBEncoding;
 const normalMap = sphereTexture.clone();
 normalMap.encoding = THREE.LinearEncoding;
 
+// Configure map texture
+mapTexture.wrapS = THREE.RepeatWrapping;
+mapTexture.wrapT = THREE.RepeatWrapping;
+mapTexture.repeat.set(4, 4);
+
 // Scene
 const scene = new THREE.Scene();
 scene.background = backgroundTexture;
@@ -117,23 +124,67 @@ const createIndicatorTexture = () => {
 
 const indicatorTexture = createIndicatorTexture();
 
-// Add grid helper for map-like effect
-const gridHelper = new THREE.GridHelper(20, 40, 0x2d862d, 0x2d862d);
-gridHelper.position.y = -0.5; // Moved very close to objects
-scene.add(gridHelper);
-
 // Ground plane with map texture
-const planeGeometry = new THREE.PlaneGeometry(20, 20);
+const planeGeometry = new THREE.PlaneGeometry(40, 40);
 const planeMaterial = new THREE.MeshStandardMaterial({ 
     map: mapTexture,
     side: THREE.DoubleSide,
     roughness: 0.8,
     metalness: 0.2
 });
+
+// Create ground
 const plane = new THREE.Mesh(planeGeometry, planeMaterial);
 plane.rotation.x = Math.PI / 2;
 plane.position.y = -0.5;
 scene.add(plane);
+
+// Create walls
+const wallGeometry = new THREE.PlaneGeometry(40, 20);
+const wallMaterial = new THREE.MeshStandardMaterial({
+    map: mapTexture,
+    side: THREE.DoubleSide,
+    roughness: 0.8,
+    metalness: 0.2
+});
+
+// Back wall
+const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+backWall.position.z = -20;
+backWall.position.y = 9.5;
+scene.add(backWall);
+
+// Left wall
+const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
+leftWall.rotation.y = Math.PI / 2;
+leftWall.position.x = -20;
+leftWall.position.y = 9.5;
+scene.add(leftWall);
+
+// Right wall
+const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
+rightWall.rotation.y = -Math.PI / 2;
+rightWall.position.x = 20;
+rightWall.position.y = 9.5;
+scene.add(rightWall);
+
+// Add ambient light for better wall visibility
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+// Add directional lights for better wall shadows
+const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+mainLight.position.set(5, 5, 5);
+scene.add(mainLight);
+
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+fillLight.position.set(-5, 3, -5);
+scene.add(fillLight);
+
+// Add grid helper that matches the ground size
+const gridHelper = new THREE.GridHelper(40, 40, 0x2d862d, 0x2d862d);
+gridHelper.position.y = -0.49;
+scene.add(gridHelper);
 
 // Location Marker (3D)
 const locationGeometry = new THREE.ConeGeometry(1, 2, 32);
@@ -166,27 +217,6 @@ indicator.rotation.x = -Math.PI / 2;
 indicator.position.y = -0.48; // Slightly above the ground plane
 scene.add(indicator);
 
-// Enhanced lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 1); // Increased intensity
-scene.add(ambientLight);
-
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-directionalLight.position.set(5, 5, 5);
-scene.add(directionalLight);
-
-const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight2.position.set(-5, 3, -5);
-scene.add(directionalLight2);
-
-// Add a spotlight focused on the location marker
-const spotLight = new THREE.SpotLight(0xffffff, 1);
-spotLight.position.set(0, 5, 0);
-spotLight.target = location;
-spotLight.angle = Math.PI / 4;
-spotLight.penumbra = 0.1;
-scene.add(spotLight);
-scene.add(spotLight.target);
-
 // Sphere with increased geometry detail
 const sphereGeometry = new THREE.SphereGeometry(0.5, 128, 128); // Increased size and segments
 
@@ -212,15 +242,21 @@ scene.add(sphere);
 
 // Camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
-camera.position.set(0, 2, 5);
+camera.position.set(8, 4, 8);
 scene.add(camera);
 
 // Controls
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
+controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below ground
+controls.minDistance = 5;
+controls.maxDistance = 20;
 controls.target.set(0, 0, 0);
 controls.update();
+
+// Add fog for depth
+scene.fog = new THREE.Fog(0x000000, 20, 50);
 
 // Debug controls
 const locationFolder = gui.addFolder('Location Marker');
@@ -266,6 +302,103 @@ sphereFolder.add(sphereMaterial, 'roughness', 0, 1, 0.01).name('Roughness');
 sphereFolder.add(sphereMaterial, 'metalness', 0, 1, 0.01).name('Metalness');
 sphereFolder.add(sphereMaterial.normalScale, 'x', 0, 2, 0.01).name('Normal Scale').onChange((value) => {
     sphereMaterial.normalScale.y = value;
+});
+
+// Load font and create text
+const fontLoader = new FontLoader();
+fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+    // First text (Sir papasara ko Sir)
+    const textGeometry1 = new TextGeometry('Sir papasara ko Sir', {
+        font: font,
+        size: 2,
+        height: 0.2,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0.03,
+        bevelSize: 0.02,
+        bevelOffset: 0,
+        bevelSegments: 5
+    });
+
+    // Second text (Leo Carl Balladares)
+    const textGeometry2 = new TextGeometry('Leo Carl Balladares', {
+        font: font,
+        size: 1.5, // Slightly smaller size
+        height: 0.2,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0.03,
+        bevelSize: 0.02,
+        bevelOffset: 0,
+        bevelSegments: 5
+    });
+
+    // Center both texts
+    textGeometry1.center();
+    textGeometry2.center();
+
+    const textMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xffffff,
+        metalness: 0.3,
+        roughness: 0.4,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.2
+    });
+
+    // Create meshes for both texts
+    const text1 = new THREE.Mesh(textGeometry1, textMaterial);
+    const text2 = new THREE.Mesh(textGeometry2, textMaterial.clone());
+
+    // Position first text
+    text1.position.z = -19.5;
+    text1.position.y = 15;
+    text1.rotation.x = -Math.PI * 0.1;
+
+    // Position second text below first text
+    text2.position.z = -19.5;
+    text2.position.y = 12; // Lower position
+    text2.rotation.x = -Math.PI * 0.1;
+
+    // Add glow effects
+    const textGlow1 = new THREE.PointLight(0xffffff, 1, 10);
+    textGlow1.position.copy(text1.position);
+    textGlow1.position.z += 1;
+
+    const textGlow2 = new THREE.PointLight(0xffffff, 1, 10);
+    textGlow2.position.copy(text2.position);
+    textGlow2.position.z += 1;
+    
+    scene.add(text1);
+    scene.add(text2);
+    scene.add(textGlow1);
+    scene.add(textGlow2);
+
+    // Add GUI controls for both texts
+    const textFolder = gui.addFolder('Text Settings');
+    
+    // Controls for first text
+    const text1Folder = textFolder.addFolder('Top Text');
+    text1Folder.add(text1.position, 'y', 10, 20, 0.1).name('Height');
+    text1Folder.add(textMaterial, 'emissiveIntensity', 0, 1, 0.01).name('Glow');
+    text1Folder.addColor({ color: '#ffffff' }, 'color')
+        .name('Color')
+        .onChange((value) => {
+            textMaterial.color.setStyle(value);
+            textMaterial.emissive.setStyle(value);
+            textGlow1.color.setStyle(value);
+        });
+
+    // Controls for second text
+    const text2Folder = textFolder.addFolder('Bottom Text');
+    text2Folder.add(text2.position, 'y', 8, 18, 0.1).name('Height');
+    text2Folder.add(text2.material, 'emissiveIntensity', 0, 1, 0.01).name('Glow');
+    text2Folder.addColor({ color: '#ffffff' }, 'color')
+        .name('Color')
+        .onChange((value) => {
+            text2.material.color.setStyle(value);
+            text2.material.emissive.setStyle(value);
+            textGlow2.color.setStyle(value);
+        });
 });
 
 // Animate
