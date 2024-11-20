@@ -11,7 +11,9 @@ const parameters = {
     emissiveIntensity: 0.2,
     locationRotationSpeed: 1,
     sphereOrbitSpeed: 0.05,
-    sphereDistance: 2.5
+    sphereDistance: 2.5,
+    sphere2OrbitSpeed: 0.03,
+    sphere2Distance: 5.0
 }
 
 // Function to convert hue to RGB color
@@ -186,20 +188,25 @@ const gridHelper = new THREE.GridHelper(40, 40, 0x2d862d, 0x2d862d);
 gridHelper.position.y = -0.49;
 scene.add(gridHelper);
 
-// Location Marker (3D)
-const locationGeometry = new THREE.ConeGeometry(1, 2, 32);
-const material = new THREE.MeshStandardMaterial({ 
-    color: 0xff0000,  // Set a base color (red)
-    metalness: 0.3,
-    roughness: 0.4,
-    emissive: 0xff0000,  // Add some self-illumination
-    emissiveIntensity: 0.2
-}); 
+// Create location marker
+const locationGeometry = new THREE.SphereGeometry(0.7, 32, 32);
+const material = new THREE.MeshStandardMaterial({
+    color: parameters.locationColor,
+    metalness: 0.7,
+    roughness: 0.2,
+    emissive: parameters.locationColor,
+    emissiveIntensity: parameters.emissiveIntensity
+});
 
-// Mesh for the location marker
 const location = new THREE.Mesh(locationGeometry, material);
-location.rotation.x = Math.PI;
 location.position.y = 1;
+location.castShadow = true;
+
+// Add glow effect to location
+const locationLight = new THREE.PointLight(parameters.locationColor, 2, 3);
+locationLight.position.set(0, 0, 0);
+location.add(locationLight);
+
 scene.add(location);
 
 // Create circular indicator under location marker
@@ -240,6 +247,28 @@ sphere.add(sphereLight); // Attach light to sphere so it moves with it
 
 scene.add(sphere);
 
+// Create second sphere
+const sphere2Geometry = new THREE.SphereGeometry(0.5, 128, 128);
+const sphere2Material = new THREE.MeshStandardMaterial({
+    map: sphereTexture.clone(),
+    normalMap: normalMap.clone(),
+    normalScale: new THREE.Vector2(1, 1),
+    roughness: 0.2,
+    metalness: 0.8,
+    envMapIntensity: 1.5,
+    side: THREE.DoubleSide
+});
+
+const sphere2 = new THREE.Mesh(sphere2Geometry, sphere2Material);
+
+// Add point light to second sphere
+const sphere2Light = new THREE.PointLight(0xffffff, 1, 10);
+sphere2Light.distance = 5;
+sphere2Light.decay = 2;
+sphere2.add(sphere2Light);
+
+scene.add(sphere2);
+
 // Camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
 camera.position.set(8, 4, 8);
@@ -265,6 +294,7 @@ locationFolder.addColor(parameters, 'locationColor')
     .onChange(() => {
         material.color.setStyle(parameters.locationColor);
         material.emissive.setStyle(parameters.locationColor);
+        locationLight.color.setStyle(parameters.locationColor);
     });
 
 locationFolder.add(parameters, 'emissiveIntensity')
@@ -276,7 +306,7 @@ locationFolder.add(parameters, 'emissiveIntensity')
         material.emissiveIntensity = parameters.emissiveIntensity;
     });
 
-// Animation controls
+// Add GUI controls for animation
 const animationFolder = gui.addFolder('Animation');
 animationFolder.add(parameters, 'locationRotationSpeed')
     .min(0)
@@ -286,23 +316,27 @@ animationFolder.add(parameters, 'locationRotationSpeed')
 
 animationFolder.add(parameters, 'sphereOrbitSpeed')
     .min(0.01)
-    .max(0.2)
+    .max(0.1)
     .step(0.01)
-    .name('Orbit Speed');
+    .name('First Orbit Speed');
 
 animationFolder.add(parameters, 'sphereDistance')
     .min(1)
     .max(5)
     .step(0.1)
-    .name('Orbit Distance');
+    .name('First Orbit Distance');
 
-// Add GUI controls for sphere material
-const sphereFolder = gui.addFolder('Sphere Settings');
-sphereFolder.add(sphereMaterial, 'roughness', 0, 1, 0.01).name('Roughness');
-sphereFolder.add(sphereMaterial, 'metalness', 0, 1, 0.01).name('Metalness');
-sphereFolder.add(sphereMaterial.normalScale, 'x', 0, 2, 0.01).name('Normal Scale').onChange((value) => {
-    sphereMaterial.normalScale.y = value;
-});
+animationFolder.add(parameters, 'sphere2OrbitSpeed')
+    .min(0.01)
+    .max(0.1)
+    .step(0.01)
+    .name('Second Orbit Speed');
+
+animationFolder.add(parameters, 'sphere2Distance')
+    .min(1)
+    .max(8)
+    .step(0.1)
+    .name('Second Orbit Distance');
 
 // Load font and create text
 const fontLoader = new FontLoader();
@@ -404,23 +438,33 @@ fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.
 // Animate
 const clock = new THREE.Clock();
 let angle = 0;
+let angle2 = Math.PI; // Start the second sphere on the opposite side
 
 const tick = () => {
     const elapsedTime = clock.getElapsedTime();
 
-    // Update sphere position to orbit horizontally around the location
+    // Update first sphere position
     angle += parameters.sphereOrbitSpeed;
     sphere.position.x = Math.cos(angle) * parameters.sphereDistance;
     sphere.position.z = Math.sin(angle) * parameters.sphereDistance;
+    sphere.position.y = Math.sin(elapsedTime) * 0.2 + 0.5;
     
-    // Add gentle up and down motion to the sphere
-    sphere.position.y = Math.sin(elapsedTime) * 0.2;
-    
-    // Rotate the sphere itself
+    // Rotate first sphere
     sphere.rotation.y += 0.01;
     sphere.rotation.x += 0.005;
 
-    // Rotate the location marker
+    // Update second sphere position with different pattern
+    angle2 += parameters.sphere2OrbitSpeed;
+    sphere2.position.x = Math.sin(angle2) * parameters.sphere2Distance;
+    sphere2.position.z = Math.cos(angle2) * parameters.sphere2Distance;
+    sphere2.position.y = Math.cos(elapsedTime * 1.5) * 0.3 + 0.7;
+
+    // Rotate second sphere differently
+    sphere2.rotation.y -= 0.015;
+    sphere2.rotation.z += 0.008;
+
+    // Animate the location sphere with a gentle pulsing effect
+    location.scale.setScalar(1 + Math.sin(elapsedTime * 2) * 0.05);
     location.rotation.y = elapsedTime * parameters.locationRotationSpeed;
     location.position.y = 1 + Math.sin(elapsedTime * 2) * 0.1;
 
