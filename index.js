@@ -275,9 +275,52 @@ animationFolder.add(parameters, 'sphere2Distance')
     .step(0.1)
     .name('Second Orbit Distance');
 
-// Load font and create text
+// Font loader for project info
 const fontLoader = new FontLoader();
-fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+fontLoader.load(
+    'https://threejs.org/examples/fonts/helvetiker_regular.typeface.json',
+    (font) => {
+        const textMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff,
+            metalness: 0.3,
+            roughness: 0.4
+        });
+
+        // About This Project
+        const titleGeometry = new TextGeometry('About This Project', {
+            font: font,
+            size: 0.3,
+            height: 0.05
+        });
+        const titleMesh = new THREE.Mesh(titleGeometry, textMaterial);
+        titleMesh.position.set(2, 2, 0);
+        scene.add(titleMesh);
+
+        // Submitted to
+        const submittedGeometry = new TextGeometry('Submitted to: Mr. James Earl Cubillas', {
+            font: font,
+            size: 0.2,
+            height: 0.05
+        });
+        const submittedMesh = new THREE.Mesh(submittedGeometry, textMaterial);
+        submittedMesh.position.set(2, 1.5, 0);
+        scene.add(submittedMesh);
+
+        // Course
+        const courseGeometry = new TextGeometry('Course: ITE 18', {
+            font: font,
+            size: 0.2,
+            height: 0.05
+        });
+        const courseMesh = new THREE.Mesh(courseGeometry, textMaterial);
+        courseMesh.position.set(2, 1, 0);
+        scene.add(courseMesh);
+    }
+);
+
+// Load font and create text
+const fontLoader2 = new FontLoader();
+fontLoader2.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
     // First text (Sir papasara ko Sir)
     const textGeometry1 = new TextGeometry('Sir papasara ko Sir', {
         font: font,
